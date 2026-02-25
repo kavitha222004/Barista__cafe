@@ -1,0 +1,41 @@
+pipeline {
+    agent {label 'ubuntu'}
+
+    environment {
+        ZAP_REPORT_PATH = 'Zap-Report.html'
+        TARGET_URL = 'http://52.91.47.188:80'   // Replace with your AWS Public IP
+    }
+
+    stages {
+        stage('Run ZAP Scan') {
+            steps {
+                script {
+                    echo "Starting OWASP ZAP Full Scan on ${TARGET_URL}"
+
+                    sh """
+                    docker run --rm \
+                      -v \$(pwd):/zap/wrk/:rw \
+                      -t ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py \
+                      -t ${TARGET_URL} \
+                      -g gen.conf \
+                      -r ${ZAP_REPORT_PATH}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                if (fileExists("${ZAP_REPORT_PATH}")) {
+                    echo "ZAP HTML report generated successfully: ${ZAP_REPORT_PATH}"
+                } else {
+                    error "ZAP report not found!"
+                }
+            }
+
+            archiveArtifacts artifacts: "${ZAP_REPORT_PATH}", allowEmptyArchive: false
+        }
+    }
+}
