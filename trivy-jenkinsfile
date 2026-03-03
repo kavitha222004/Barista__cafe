@@ -1,13 +1,15 @@
 pipeline {
-    agent {label 'ubuntu'}
+    agent { label 'ubuntu' }
 
     environment {
         // Git
         GIT_URL    = 'https://github.com/Sushmaa123/Barista_cafe.git'
         GIT_BRANCH = 'master'
 
-        // Image
-        IMAGE_NAME = 'barista'
+        // Docker
+        IMAGE_NAME      = 'barista'
+        DOCKERHUB_REPO  = 'sushmaagowdaa/barista'
+        IMAGE_TAG       = "${BUILD_NUMBER}"
 
         // Report
         IMG_REPORT  = 'trivy-image.html'
@@ -25,7 +27,9 @@ pipeline {
         stage('Build Image') {
             steps {
                 script {
-                    sh "docker build -t ${IMAGE_NAME} ."
+                    sh """
+                    docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} .
+                    """
                 }
             }
         }
@@ -42,8 +46,26 @@ pipeline {
                       --format template \
                       --template "@/contrib/html.tpl" \
                       -o /workspace/${IMG_REPORT} \
-                      ${IMAGE_NAME}
+                      ${DOCKERHUB_REPO}:${IMAGE_TAG}
                     """
+                }
+            }
+        }
+
+        // 🚀 Docker Push Stage (Added)
+        stage('Docker Login & Push') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-cred',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh """
+                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                        docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                        """
+                    }
                 }
             }
         }
