@@ -25,8 +25,7 @@ pipeline {
         stage('Build Image') {
             steps {
                 script {
-                    sh '''cd frontend
-                    docker build -t ${IMAGE_NAME} .'''
+                    sh "docker build -t ${IMAGE_NAME} ."
                 }
             }
         }
