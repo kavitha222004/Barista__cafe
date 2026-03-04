@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: barista-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: barista
+  template:
+    metadata:
+      labels:
+        app: barista
+    spec:
+      containers:
+        - name: barista-container
+          image: sushmaagowdaa/barista:5
+          ports:
+            - containerPort: 80
+          imagePullPolicy: Always
