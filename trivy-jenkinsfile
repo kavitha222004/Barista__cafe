@@ -9,7 +9,7 @@ pipeline {
         // Docker
         IMAGE_NAME      = 'barista'
         DOCKERHUB_REPO  = 'sushmaagowdaa/barista'
-        IMAGE_TAG       = "${BUILD_NUMBER}"
+        IMAGE_TAG       = "1.0"
 
         // Report
         IMG_REPORT  = 'trivy-image.html'
