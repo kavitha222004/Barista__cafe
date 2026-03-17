@@ -23,6 +23,15 @@ echo \
 sudo apt update -y
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
+echo "Installing docker-compose standalone..."
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+  -o /usr/local/bin/docker-compose
+
+sudo chmod +x /usr/local/bin/docker-compose
+
+# Optional: create symlink
+sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+
 echo "Starting Docker..."
 sudo systemctl start docker
 sudo systemctl enable docker
@@ -30,7 +39,7 @@ sudo systemctl enable docker
 echo "Creating user 'devsecops'..."
 sudo useradd -m -s /bin/bash devsecops
 
-echo "Disabling password login for 'devsecops'..."
+echo "Setting password for 'devsecops'..."
 sudo passwd devsecops
 
 echo "Adding 'devsecops' to sudo group..."
@@ -38,9 +47,6 @@ sudo usermod -aG sudo devsecops
 
 echo "Adding 'devsecops' to docker group..."
 sudo usermod -aG docker devsecops
-
-echo "Adding current user to docker group..."
-sudo usermod -aG docker $USER
 
 echo "Setting up SSH access for 'devsecops'..."
 sudo mkdir -p /home/devsecops/.ssh
@@ -52,8 +58,11 @@ sudo chmod 600 /home/devsecops/.ssh/authorized_keys
 echo "Verifying Docker..."
 docker --version
 
-echo "Verifying Docker Compose..."
+echo "Verifying Docker Compose (plugin)..."
 docker compose version
+
+echo "Verifying docker-compose (standalone)..."
+docker-compose --version
 
 echo "Applying docker group changes..."
 newgrp docker
