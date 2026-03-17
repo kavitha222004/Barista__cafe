@@ -1,0 +1,44 @@
+version: '3.7'
+
+services:
+  postgres:
+    image: postgres:18.2
+    restart: always
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgre@123
+    ports:
+    - 5432:5432
+    volumes:
+      - ./postgres-master/data:/var/lib/postgresql/data/
+    networks:
+      - project
+	  
+  sonarqube:
+    image: sonarqube:community
+    ports:
+      - 9000:9000  
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://postgres:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: Sonar@123!
+    networks:
+      - project
+  jenkins:
+    image: jenkins/jenkins:2.552
+    user: "0:0"
+    container_name: jenkins
+    volumes:
+      - ./jenkins_home:/var/jenkins_home:z
+    restart: always
+    ports:
+      - 8080:8080
+      - 50000:50000
+    networks:
+      - project
+	  
+
+networks:
+  project:
+    external: true
