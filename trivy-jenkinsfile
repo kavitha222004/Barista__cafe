@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Git
-        GIT_URL    = 'https://github.com/Sushmaa123/Barista_cafe.git'
+        GIT_URL    = 'https://github.com/kavitha222004/Barista__cafe.git'
         GIT_BRANCH = 'master'
 
         // Docker
