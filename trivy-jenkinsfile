@@ -8,7 +8,7 @@ pipeline {
 
         // Docker
         IMAGE_NAME      = 'barista'
-        DOCKERHUB_REPO  = 'sushmaagowdaa/barista'
+        DOCKERHUB_REPO  = 'kavithav2004/barista'
         IMAGE_TAG       = "1.0"
 
         // Report
