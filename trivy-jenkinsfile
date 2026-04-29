@@ -2,18 +2,16 @@ pipeline {
     agent { label 'ubuntu' }
 
     environment {
-        // Git
         GIT_URL    = 'https://github.com/kavitha222004/Barista__cafe.git'
         GIT_BRANCH = 'master'
 
-        // Docker
-        IMAGE_NAME      = 'barista'
         DOCKERHUB_REPO  = 'kavithav2004/barista'
-        IMAGE_TAG       = "1.0"
+        IMAGE_TAG       = "${BUILD_NUMBER}"
 
-        // Report
+        APP_NAMESPACE   = 'default'
+
         IMG_REPORT  = 'trivy-image.html'
-        TRIVY_IMAGE = 'aquasec/trivy:latest'
+        TRIVY_IMAGE = 'aquasec/trivy:0.50.1'
     }
 
     stages {
@@ -26,54 +24,98 @@ pipeline {
 
         stage('Build Image') {
             steps {
-                script {
-                    sh """
-                    docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} .
-                    """
-                }
+                sh "docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} ."
             }
         }
 
-        stage('Trivy Image Scan') {
+        stage('Trivy Scan') {
             steps {
-                script {
-                    sh """
-                    docker run --rm \
-                      -v /var/run/docker.sock:/var/run/docker.sock \
-                      -v \$(pwd):/workspace \
-                      ${TRIVY_IMAGE} image \
-                      --timeout 30m \
-                      --format template \
-                      --template "@/contrib/html.tpl" \
-                      -o /workspace/${IMG_REPORT} \
-                      ${DOCKERHUB_REPO}:${IMAGE_TAG}
-                    """
-                }
+                sh """
+                docker run --rm \
+                  -v /var/run/docker.sock:/var/run/docker.sock \
+                  -v \$(pwd):/workspace \
+                  ${TRIVY_IMAGE} image \
+                  --timeout 30m \
+                  --format template \
+                  --template "@/contrib/html.tpl" \
+                  -o /workspace/${IMG_REPORT} \
+                  ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                """
             }
         }
 
-        // 🚀 Docker Push Stage (Added)
         stage('Docker Login & Push') {
             steps {
-                script {
-                    withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-cred',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )]) {
-                        sh """
-                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                        docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
-                        """
-                    }
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-cred',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh """
+                    echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                    docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                    docker tag ${DOCKERHUB_REPO}:${IMAGE_TAG} ${DOCKERHUB_REPO}:latest
+                    docker push ${DOCKERHUB_REPO}:latest
+                    """
                 }
+            }
+        }
+
+        // 🔥 CLEAN DEPLOYMENT (NO set image)
+        stage('Deploy App (K8s)') {
+            steps {
+                sh """
+                set -e
+
+                echo "🔍 Checking cluster..."
+                kubectl get nodes
+
+                echo "📂 Checking manifests..."
+                ls -l kubernetes/
+
+                echo "🔄 Updating image in deployment.yaml..."
+                sed -i 's|image: .*|image: ${DOCKERHUB_REPO}:${IMAGE_TAG}|g' kubernetes/deployment.yml
+
+                echo "🚀 Applying manifests..."
+                kubectl apply -f kubernetes/
+
+                echo "✅ Deployment applied"
+                """
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh """
+                echo "---- Pods ----"
+                kubectl get pods -n ${APP_NAMESPACE}
+
+                echo "---- Services ----"
+                kubectl get svc -n ${APP_NAMESPACE}
+
+                echo "---- HPA ----"
+                kubectl get hpa -n ${APP_NAMESPACE}
+
+                echo "---- Ingress ----"
+                kubectl get ingress -n ${APP_NAMESPACE}
+                """
             }
         }
     }
 
     post {
+
+        success {
+            echo "✅ Application deployed successfully"
+        }
+
+        failure {
+            echo "❌ Deployment failed"
+        }
+
         always {
             archiveArtifacts artifacts: "${IMG_REPORT}", allowEmptyArchive: false
+            sh "docker logout || true"
         }
     }
 }
